@@ -219,16 +219,16 @@ def extract_roi(roi_to_extract):
     return roi_extracted
 
 
-def outliers_neighbors(path_neighbors, distance_thr, proportion_thr):
+def outliers_neighbors(path_neighbors, proportion_thr, distance_thr):
     """
-    Remove the neighbors contacts under the residues distance and frames proportions thresholds.
+    Remove the neighbors contacts under the frames' proportions and the residues' distance thresholds.
 
     :param path_neighbors: the path to the neighbors file.
     :type path_neighbors: str
-    :param distance_thr: the residues' distance threshold.
-    :type distance_thr: int
     :param proportion_thr: the neighbors contacts frames proportion's threshold.
     :type proportion_thr: float
+    :param distance_thr: the residues' distance threshold.
+    :type distance_thr: int
     :return: the dataframe of unique residues pairs contacts.
     :rtype: pd.Dataframe
     """
@@ -253,7 +253,7 @@ def outliers_neighbors(path_neighbors, distance_thr, proportion_thr):
 
 def update_domains(df, domains, out_dir, params, roi_id):
     """
-    Get the domains for pairs acceptor and donor.
+    Get the domains for the acceptor and the donor in pairs.
 
     :param df: the dataframe of unique residues pairs contacts.
     :type df: pd.Dataframe
@@ -278,20 +278,58 @@ def update_domains(df, domains, out_dir, params, roi_id):
                 residue_2_regions[idx] = row_domains["domain"]
     df.insert(3, "residue 1 domain", pd.DataFrame(residue_1_regions))
     df.insert(6, "residue 2 domain", pd.DataFrame(residue_2_regions))
-    out_path = os.path.join(out_dir, f"neighborhood_contacts_{params['sample'].replace(' ', '_')}_{roi_id}.csv")
+    out_path = os.path.join(out_dir, f"neighborhood_{params['sample'].replace(' ', '_')}_{roi_id}.csv")
     df.to_csv(out_path, index=False)
-    logging.info(f"Pairs residues contacts updated with domains saved: {out_path}")
+    logging.info(f"{roi_id} neighborhood's contacts saved: {out_path}")
     return df
 
 
-def acceptors_domains_involved(df, domains, out_dir, params, roi_id, fmt, res_dist):
+def domains_involved(df, domains):
     """
-    Create the neighborhood contacts plot by regions.
+    By domain, create the neighborhood contacts dataframes by atoms and by residues.
 
     :param df: the dataframe.
     :type df: pd.Dataframe
     :param domains: the domains.
     :type domains: pd.Dataframe
+    :return: the domains dataframes of the contacts by atom and by residue.
+    :rtype: pandas.Dataframe
+    """
+    # get the number of contacts by domain, then by residues' pair
+    data = {}
+    for _, row_domains in domains.iterrows():
+        neighbors_in_domain = df[df["residue 2 domain"] == row_domains["domain"]]
+        if len(neighbors_in_domain) > 0:
+            data[row_domains["domain"]] = {}
+            for _, row_neighbor in neighbors_in_domain.iterrows():
+                residues_combination = f"{row_neighbor['residue 1 position']} - {row_neighbor['residue 2 position']}"
+                if residues_combination not in data[row_domains["domain"]]:
+                    data[row_domains["domain"]][residues_combination] = 0
+                data[row_domains["domain"]][residues_combination] += 1
+    # get the number of atoms in contact and the number of residues with atoms in contact
+    data_by_atom = {}
+    data_by_residue = {}
+    for domain in data:
+        data_by_residue[domain] = len(data[domain])
+        nb_atoms = 0
+        for residues_combination in data[domain]:
+            nb_atoms += data[domain][residues_combination]
+        data_by_atom[domain] = nb_atoms
+    # save as dataframes
+    source_by_atom = pd.DataFrame.from_dict({"domain": data_by_atom.keys(),
+                                             "number of contacts": data_by_atom.values()})
+    source_by_residue = pd.DataFrame.from_dict({"domain": data_by_residue.keys(),
+                                                "number of contacts": data_by_residue.values()})
+
+    return source_by_atom, source_by_residue
+
+
+def plot_neighbors(source, out_dir, params, roi_id, fmt, res_dist, by_atom):
+    """
+    Create the neighborhood contacts plot by domains.
+
+    :param source: the dataframe.
+    :type source: pd.Dataframe
     :param out_dir: the path of the output directory.
     :type out_dir: str
     :param params: the parameters used in the previous trajectory contacts analysis.
@@ -300,21 +338,24 @@ def acceptors_domains_involved(df, domains, out_dir, params, roi_id, fmt, res_di
     :type roi_id: str
     :param fmt: the format for the plot.
     :type fmt: str
+    :param by_atom: the contacts are displayed by atoms.
+    :type by_atom: bool
     :param res_dist: the maximal residues distance in the amino acids chain.
     :type res_dist: int
     """
-    data = {}
-    for _, row_domains in domains.iterrows():
-        nb_neighbors_in_domain = len(df[df["residue 2 domain"] == row_domains["domain"]])
-        if nb_neighbors_in_domain > 0:
-            data[row_domains["domain"]] = nb_neighbors_in_domain
-    source = pd.DataFrame.from_dict({"domain": data.keys(), "number of contacts": data.values()})
+    # set color and plot text values
+    if by_atom:
+        elt_type = "atom"
+        plot_color="deeppink"
+    else:
+        elt_type = "residue"
+        plot_color = "orangered"
 
     # set the seaborn plots style and size
     sns.set_style("darkgrid")
     sns.set_context("poster", rc={"grid.linewidth": 2})
     fig, ax = plt.subplots(figsize=(15, 15))
-    sns.barplot(data=source, ax=ax, x="domain", y="number of contacts", color="orangered")
+    sns.barplot(data=source, ax=ax, x="domain", y="number of contacts", color=plot_color)
 
     # modify the ticks labels for the X axis by adding new lines every 3 words
     modified_x_labels = [re.sub(r'(\w+ \w+ \w+)( )',
@@ -324,9 +365,10 @@ def acceptors_domains_involved(df, domains, out_dir, params, roi_id, fmt, res_di
     ax.set_xticklabels(modified_x_labels, rotation=45, horizontalalignment="right")
 
     ax.set_xlabel(None)
-    ax.set_ylabel(f"{roi_id}: atoms neighborhood contacts", fontweight="bold")
-    ax.text(x=0.5, y=1.1, s=f"{params['sample']}: neighborhood contacts by domains\nbetween the Region Of Interest "
-                            f"{roi_id} and the whole protein",
+
+    ax.set_ylabel(f"{roi_id}: {elt_type} - {elt_type} neighborhood contacts", fontweight="bold")
+    ax.text(x=0.5, y=1.1, s=f"{params['sample']}: {elt_type} - {elt_type} neighborhood contacts \nbetween {roi_id} and "
+                            f"the protein domains",
             weight="bold", ha="center", va="bottom", transform=ax.transAxes)
     md_duration = f", MD: {params['parameters']['time']}" if "time" in params['parameters'] else ""
     ax.text(x=0.5, y=1.0,
@@ -334,9 +376,10 @@ def acceptors_domains_involved(df, domains, out_dir, params, roi_id, fmt, res_di
               f"distance: {res_dist}\n{params['parameters']['proportion contacts']}% of contacts in "
               f"{params['frames']} frames{md_duration}",
             alpha=0.75, ha="center", va="bottom", transform=ax.transAxes)
-    path = os.path.join(out_dir, f"neighborhood_contacts_{params['sample'].replace(' ', '_')}_{roi_id}.{fmt}")
+    path = os.path.join(out_dir,
+                        f"neighborhood_{elt_type}_contacts_{params['sample'].replace(' ', '_')}_{roi_id}.{fmt}")
     fig.savefig(path, bbox_inches="tight")
-    logging.info(f"Plot {roi_id} neighborhood atoms contacts by domain saved: {path}")
+    logging.info(f"Plot of {roi_id} neighborhood {elt_type} contacts by domain saved: {path}")
 
 
 if __name__ == "__main__":
@@ -419,12 +462,12 @@ if __name__ == "__main__":
         logging.error(exc, exc_info=True)
         sys.exit(1)
 
-    # load and format the domains file
+    # load and format the domains' file
     domains_data = get_domains(args.domains, args.embedded_domains)
-    # match the ROI coordinates with a domain
+    # match the Region Of Interest coordinates with a domain
     region_of_interest = extract_roi_id(domains_data, roi_limits)
 
-    outliers = outliers_neighbors(args.input, args.residues_distance, args.proportion)
+    outliers = outliers_neighbors(args.input, args.proportion, args.residues_distance)
     logging.info(f"{len(outliers)} unique residues pairs contacts (<= "
                  f"{parameters_contacts_analysis['parameters']['maximal atoms distance']} \u212B) with a distance of "
                  f"at least {args.residues_distance} residues"
@@ -432,7 +475,15 @@ if __name__ == "__main__":
                  f"contacts).")
 
     # get the neighborhood contacts
-    neighborhood_contacts = update_domains(outliers, domains_data, args.out, parameters_contacts_analysis, region_of_interest)
-    # plot the neighborhood contacts between the region of interest and the rest of the domains
-    acceptors_domains_involved(neighborhood_contacts, domains_data, args.out, parameters_contacts_analysis, region_of_interest,
-                               args.format, args.residues_distance)
+    neighborhood_contacts = update_domains(outliers, domains_data, args.out, parameters_contacts_analysis,
+                                           region_of_interest)
+    # get the neighborhood contacts by atoms and by residues
+    by_atom, by_residue = domains_involved(neighborhood_contacts, domains_data)
+
+    # plot neighborhood contacts by atom
+    plot_neighbors(by_atom, args.out, parameters_contacts_analysis, region_of_interest, args.format,
+                   args.residues_distance, by_atom=True)
+
+    # plot neighborhood contacts by residue
+    plot_neighbors(by_residue, args.out, parameters_contacts_analysis, region_of_interest, args.format,
+                   args.residues_distance, by_atom=False)
