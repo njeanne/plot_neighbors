@@ -78,7 +78,7 @@ def check_optional_args(args_domains, args_embedded_domains, args_residues_dista
 
 def get_domains(domains_path, use_embedded):
     """
-    Load the domain file and fill in domains that are not covered.
+    Load the domain file and fill-in domains that are not covered.
 
     :param domains_path: the path to the domains file.
     :type domains_path: str
@@ -90,7 +90,7 @@ def get_domains(domains_path, use_embedded):
     """
     logging.info(f"domains embedded in other domains will{' ' if use_embedded else ' not '}be used in the contacts "
                  f"by domain plot.")
-    raw = pd.read_csv(domains_path, sep=",", header=0, names=["domain", "start", "stop", "color"], index_col=False)
+    raw = pd.read_csv(domains_path, sep=",", header=0, names=["domain", "start", "stop"], index_col=False)
 
     # check for embedded entries
     embedded_raw_idx = []
@@ -102,9 +102,10 @@ def get_domains(domains_path, use_embedded):
             previous_stop = row["stop"]
 
     # update the domains
-    data = {"domain": [], "start": [], "stop": [], "color": []}
+    data = {"domain": [], "start": [], "stop": []}
     expected_start = 1
-    previous = {"embedded": False, "domain": None, "stop": None, "color": None}
+    previous = {"embedded": False, "domain": None, "stop": None}
+    row = None
     for idx, row in raw.iterrows():
         if idx in embedded_raw_idx:  # case of embedded entry
             if use_embedded:
@@ -114,7 +115,6 @@ def get_domains(domains_path, use_embedded):
                 data["domain"].append(row["domain"])
                 data["start"].append(row["start"])
                 data["stop"].append(row["stop"])
-                data["color"].append(row["color"])
                 # record the end of the domain where the embedded is
                 previous["embedded"] = True
                 expected_start = row["stop"] + 1
@@ -124,7 +124,6 @@ def get_domains(domains_path, use_embedded):
                 data["domain"].append(previous["domain"])
                 data["start"].append(expected_start)
                 data["stop"].append(previous["stop"])
-                data["color"].append(previous["color"])
                 expected_start = previous["stop"] + 1
                 previous["embedded"] = False
             if row["start"] > expected_start:  # between domains
@@ -135,22 +134,18 @@ def get_domains(domains_path, use_embedded):
                     data["domain"].append(f"between {previous['domain']} and {row['domain']}")
                 data["start"].append(expected_start)
                 data["stop"].append(row["start"] - 1)
-                data["color"].append("#cecece")
             # record the current row domain
             data["domain"].append(row["domain"])
             data["start"].append(row["start"])
             data["stop"].append(row["stop"])
-            data["color"].append(row["color"])
             previous["domain"] = row["domain"]
             previous["stop"] = row["stop"]
-            previous["color"] = row["color"]
             expected_start = row["stop"] + 1
 
     # add a last row for the case of a contact after the last domain
     data["domain"].append(f"after {row['domain']}")
     data["start"].append(row["stop"] + 1)
     data["stop"].append(row["stop"] + 10000)
-    data["color"].append(None)
 
     df = pd.DataFrame(data)
     return df
@@ -395,13 +390,14 @@ if __name__ == "__main__":
     From a CSV file of the neighborhood contacts during a molecular dynamics simulation and a YAML parameters file 
     produced by the script trajectories_neighbors.py (https://github.com/njeanne/trajectories_neighbors), a heatmap 
     representing the residues neighborhood contacts.
+    For the domain CSV, if some domains are embedded in other domains, they can be displayed in the outputs with the 
+    option "--use-embedded".
     
     A Region Of Interest (ROI) is defined with a range of amino acids selected in the protein, on the heatmap the 
     neighborhood contacts on the ordinate axis will be the ones belonging to this ROI.
 
-    If a domains CSV file is used with the option "--domains", a plot and a CSV file of the neighborhood contacts by 
-    domains will be produced. For this CSV, if some domains are embedded in other domains, they can be displayed in the 
-    outputs with the option "--use-embedded".
+    A CSV file of the neighborhood contacts and Two plots (one by atoms and the other by residues) by 
+    domains will be produced. 
     """
     parser = argparse.ArgumentParser(description=descr, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-o", "--out", required=True, type=str, help="the path to the output directory.")
@@ -462,7 +458,7 @@ if __name__ == "__main__":
         logging.error(exc, exc_info=True)
         sys.exit(1)
 
-    # load and format the domains' file
+    # load and format the domain file
     domains_data = get_domains(args.domains, args.embedded_domains)
     # match the Region Of Interest coordinates with a domain
     region_of_interest = extract_roi_id(domains_data, roi_limits)
