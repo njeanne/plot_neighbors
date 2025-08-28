@@ -1,0 +1,34 @@
+atoms: 26338
+frames: 245000
+frames selection:
+  AB248520-3e_WT_ORF1_0_MD-30M.nc:
+    begin: 10000
+    end: 15000
+molecules: 1
+parameters:
+  maximal atoms distance: 3.0
+  proportion contacts: 50.0
+  time: 1020 ns
+pickle neighbors: /tmpdir/p24036jn/MD/analysis/neighbors/by_sample/WT/MD-510M/AB248520-3e_WT_ORF1_analysis.pkl
+residues: 1717
+sample: AB248520-3e_WT_ORF1
+size Gb: 144.23154294490814
+topology file: AB248520-3e_WT_ORF1_0.parm
+trajectory files processed:
+- AB248520-3e_WT_ORF1_0_MD-30M.nc
+- AB248520-3e_WT_ORF1_0_MD-60M.nc
+- AB248520-3e_WT_ORF1_0_MD-90M.nc
+- AB248520-3e_WT_ORF1_0_MD-120M.nc
+- AB248520-3e_WT_ORF1_0_MD-150M.nc
+- AB248520-3e_WT_ORF1_0_MD-180M.nc
+- AB248520-3e_WT_ORF1_0_MD-210M.nc
+- AB248520-3e_WT_ORF1_0_MD-240M.nc
+- AB248520-3e_WT_ORF1_0_MD-270M.nc
+- AB248520-3e_WT_ORF1_0_MD-300M.nc
+- AB248520-3e_WT_ORF1_0_MD-330M.nc
+- AB248520-3e_WT_ORF1_0_MD-360M.nc
+- AB248520-3e_WT_ORF1_0_MD-390M.nc
+- AB248520-3e_WT_ORF1_0_MD-420M.nc
+- AB248520-3e_WT_ORF1_0_MD-450M.nc
+- AB248520-3e_WT_ORF1_0_MD-480M.nc
+- AB248520-3e_WT_ORF1_0_MD-510M.nc
