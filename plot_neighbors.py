@@ -88,7 +88,7 @@ def get_domains(domains_path, use_embedded):
     :return: the filled-in domains data frame.
     :rtype: pd.Dataframe
     """
-    logging.info(f"domains embedded in other domains will{' ' if use_embedded else ' not '}be used in the contacts "
+    logging.info(f"Domains embedded in other domains will{' ' if use_embedded else ' not '}be used in the contacts "
                  f"by domain plot.")
     raw = pd.read_csv(domains_path, sep=",", header=0, names=["domain", "start", "stop"], index_col=False)
 
@@ -165,9 +165,10 @@ def extract_roi_id(domains, roi_coord):
     """
     try:
         roi_id = domains.loc[(domains["start"] == roi_coord[0]) & (domains["stop"] == roi_coord[1])]["domain"].values[0]
+        logging.info(f"Region Of Interest found for coordinates {roi_coord[0]}-{roi_coord[1]}: {roi_id}")
     except IndexError:
         roi_id = f"{roi_coord[0]}-{roi_coord[1]}"
-        logging.warning(f"no domains match with the coordinates {roi_id} in the domains CSV file provided, this "
+        logging.warning(f"No domains match with the coordinates {roi_id} in the domains CSV file provided, this "
                         f"coordinates will be used to named the Region Of Interest instead of a domain name.")
     return roi_id
 
@@ -402,8 +403,8 @@ def plot_neighbors(source, out_dir, params, roi_id, fmt, res_dist, by_atom):
     ax.set_xlabel(None)
 
     ax.set_ylabel(f"{roi_id}: {elt_type} - {elt_type} neighborhood contacts", fontweight="bold")
-    ax.text(x=0.5, y=1.1, s=f"{params['sample']}: {elt_type} - {elt_type} neighborhood contacts \nbetween {roi_id} and "
-                            f"the protein domains",
+    ax.text(x=0.5, y=1.1, s=f"{params['sample'].replace('_', ' ')}: {elt_type} - {elt_type} neighborhood contacts "
+                            f"\nbetween {roi_id} and the protein domains",
             weight="bold", ha="center", va="bottom", transform=ax.transAxes)
     md_duration = f", MD: {params['parameters']['time']}" if "time" in params['parameters'] else ""
     ax.text(x=0.5, y=1.0,
@@ -412,7 +413,8 @@ def plot_neighbors(source, out_dir, params, roi_id, fmt, res_dist, by_atom):
               f"{params['frames']} frames{md_duration}",
             alpha=0.75, ha="center", va="bottom", transform=ax.transAxes)
     path = os.path.join(out_dir,
-                        f"neighborhood_{elt_type}_contacts_{params['sample'].replace(' ', '_')}_{roi_id}.{fmt}")
+                        f"neighborhood_{elt_type}_{params['sample'].replace(' ', '_')}_"
+                        f"{roi_id.replace(' ', '_')}_by-domain.{fmt}")
     fig.savefig(path, bbox_inches="tight")
     logging.info(f"Plot of {roi_id} neighborhood {elt_type} contacts by domain saved: {path}")
 

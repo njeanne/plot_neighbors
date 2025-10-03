@@ -1,0 +1,34 @@
+atoms: 27028
+frames: 245000
+frames selection:
+  sample_X_MD-30M.nc:
+    begin: 10000
+    end: 15000
+molecules: 1
+parameters:
+  maximal atoms distance: 3.0
+  proportion contacts: 50.0
+  time: 1020 ns
+pickle neighbors: <THE_PATH_OF_THE_TRAJECTORY_NEIGHBORS_ANALYSIS>/MD-510M/sample_X_analysis.pkl
+residues: 1755
+sample: sample_X
+size Gb: 148.01010489463806
+topology file: sample_X.parm
+trajectory files processed:
+- sample_X_MD-30M.nc
+- sample_X_MD-60M.nc
+- sample_X_MD-90M.nc
+- sample_X_MD-120M.nc
+- sample_X_MD-150M.nc
+- sample_X_MD-180M.nc
+- sample_X_MD-210M.nc
+- sample_X_MD-240M.nc
+- sample_X_MD-270M.nc
+- sample_X_MD-300M.nc
+- sample_X_MD-330M.nc
+- sample_X_MD-360M.nc
+- sample_X_MD-390M.nc
+- sample_X_MD-420M.nc
+- sample_X_MD-450M.nc
+- sample_X_MD-480M.nc
+- sample_X_MD-510M.nc
