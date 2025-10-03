@@ -214,7 +214,7 @@ def extract_roi(roi_to_extract):
     return roi_extracted
 
 
-def outliers_neighbors(path_neighbors, proportion_thr, distance_thr):
+def select_valid_atoms_neighbors(path_neighbors, proportion_thr, distance_thr):
     """
     Remove the neighbors contacts under the frames' proportions and the residues' distance thresholds.
 
@@ -224,12 +224,13 @@ def outliers_neighbors(path_neighbors, proportion_thr, distance_thr):
     :type proportion_thr: float
     :param distance_thr: the residues' distance threshold.
     :type distance_thr: int
-    :return: the dataframe of unique residues pairs contacts.
+    :return: the dataframe of unique atoms pairs contacts.
     :rtype: pd.Dataframe
     """
     df_init = pd.read_csv(path_neighbors, sep=",")
+
     # remove the neighborhood contacts under the frames' proportion threshold.
-    df = df_init[df_init["proportion frames (%)"] >= proportion_thr]
+    df = df_init[df_init["proportion frames (%)"] >= proportion_thr].copy()
     logging.debug(f"{len(df)}/{len(df_init)} neighborhood contacts present in {proportion_thr}% of the molecular "
                   f"dynamics frames.")
     # remove rows with too close distance between the residues
@@ -242,11 +243,10 @@ def outliers_neighbors(path_neighbors, proportion_thr, distance_thr):
     df.reset_index(inplace=True, drop=True)
     logging.debug(f"{len(df)}/{len(df_init)} atoms contacts remaining with a minimal residues distance threshold of "
                   f"{distance_thr}.")
-
     return df
 
 
-def update_domains(df, domains, out_dir, params, roi_id):
+def update_with_domains(df, domains, out_dir, params, roi_id):
     """
     Get the domains for the acceptor and the donor in pairs.
 
@@ -272,11 +272,51 @@ def update_domains(df, domains, out_dir, params, roi_id):
             if row_domains["start"] <= row_contacts["residue 2 position"] <= row_domains["stop"]:
                 residue_2_regions[idx] = row_domains["domain"]
     df.insert(3, "residue 1 domain", pd.DataFrame(residue_1_regions))
-    df.insert(6, "residue 2 domain", pd.DataFrame(residue_2_regions))
-    out_path = os.path.join(out_dir, f"neighborhood_{params['sample'].replace(' ', '_')}_{roi_id}.csv")
+    df.insert(7, "residue 2 domain", pd.DataFrame(residue_2_regions))
+    df = df.rename(columns={"neighbors": "atoms contact"})
+    out_path = os.path.join(out_dir, f"neighborhood_atoms_{params['sample'].replace(' ', '_')}_"
+                                     f"{roi_id.replace(' ', '-')}.csv")
     df.to_csv(out_path, index=False)
-    logging.info(f"{roi_id} neighborhood's contacts saved: {out_path}")
+    logging.info(f"{roi_id} neighborhood's atoms contacts saved: {out_path}")
     return df
+
+
+def save_contacts_by_residue(df, out_dir, params, roi_id):
+    """
+    Save the neighborhood contacts by residue.
+
+    :param df: the initial dataframe
+    :type df: pd.Dataframe
+    :param out_dir: the path output directory.
+    :type out_dir: str
+    :param params: the parameters used in the previous trajectory contacts analysis.
+    :type params: dict
+    :param roi_id: the region of interest name.
+    :type roi_id: str
+    """
+    data = {"residues contact": [], "residue 1 position": [], "residue 1": [], "residue 1 domain": [],
+            "residue 2 position": [], "residue 2": [], "residue 2 domain": [], "number atoms contacts": [],
+            "atoms contacts": []}
+    unique_first_positions = sorted(list(set(df["residue 1 position"])))
+    for first_position in unique_first_positions:
+        tmp = df.loc[(df['residue 1 position'] == first_position)]
+        for second_position in sorted(list(set(tmp["residue 2 position"]))):
+            tmp2 = tmp.loc[(df['residue 2 position'] == second_position)]
+            data["residues contact"].append(f"{tmp2['residue 1 position'].values[0]}{tmp2['residue 1'].values[0]}_"
+                                            f"{tmp2['residue 2 position'].values[0]}{tmp2['residue 2'].values[0]}")
+            data["residue 1 position"].append(tmp2["residue 1 position"].values[0])
+            data["residue 1"].append(tmp2["residue 1"].values[0])
+            data["residue 1 domain"].append(tmp2["residue 1 domain"].values[0])
+            data["residue 2 position"].append(tmp2["residue 2 position"].values[0])
+            data["residue 2"].append(tmp2["residue 2"].values[0])
+            data["residue 2 domain"].append(tmp2["residue 2 domain"].values[0])
+            data["number atoms contacts"].append(len(tmp2))
+            data["atoms contacts"].append(" | ".join(tmp2["atoms contact"].values))
+    df_residues = pd.DataFrame.from_dict(data)
+    out_path = os.path.join(out_dir, f"neighborhood_residues_{params['sample'].replace(' ', '_')}_"
+                                     f"{roi_id.replace(' ', '-')}.csv")
+    df_residues.to_csv(out_path, index=False)
+    logging.info(f"{roi_id} neighborhood's residues contacts saved: {out_path}")
 
 
 def domains_involved(df, domains):
@@ -341,7 +381,7 @@ def plot_neighbors(source, out_dir, params, roi_id, fmt, res_dist, by_atom):
     # set color and plot text values
     if by_atom:
         elt_type = "atom"
-        plot_color="deeppink"
+        plot_color = "deeppink"
     else:
         elt_type = "residue"
         plot_color = "orangered"
@@ -463,18 +503,21 @@ if __name__ == "__main__":
     # match the Region Of Interest coordinates with a domain
     region_of_interest = extract_roi_id(domains_data, roi_limits)
 
-    outliers = outliers_neighbors(args.input, args.proportion, args.residues_distance)
-    logging.info(f"{len(outliers)} unique residues pairs contacts (<= "
+    atoms_neighbors = select_valid_atoms_neighbors(args.input, args.proportion, args.residues_distance)
+    logging.info(f"{len(atoms_neighbors)} unique residues pairs contacts (<= "
                  f"{parameters_contacts_analysis['parameters']['maximal atoms distance']} \u212B) with a distance of "
                  f"at least {args.residues_distance} residues"
                  f"{' in the region of interest '+args.roi if args.roi else ''} (residues pair may have multiple atoms "
                  f"contacts).")
 
-    # get the neighborhood contacts
-    neighborhood_contacts = update_domains(outliers, domains_data, args.out, parameters_contacts_analysis,
-                                           region_of_interest)
+    # add the atom contact neighborhood domains
+    atoms_neighbors = update_with_domains(atoms_neighbors, domains_data, args.out, parameters_contacts_analysis,
+                                          region_of_interest)
+    # save the neighborhood contacts by residues
+    save_contacts_by_residue(atoms_neighbors, args.out, parameters_contacts_analysis, region_of_interest)
+
     # get the neighborhood contacts by atoms and by residues
-    by_atom, by_residue = domains_involved(neighborhood_contacts, domains_data)
+    by_atom, by_residue = domains_involved(atoms_neighbors, domains_data)
 
     # plot neighborhood contacts by atom
     plot_neighbors(by_atom, args.out, parameters_contacts_analysis, region_of_interest, args.format,
