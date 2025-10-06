@@ -30,7 +30,7 @@ The script can be tested with the test data provided in the `data` directory, th
 ```shell script
 conda activate python3
 
-./plot_neighbors.py --format svg --roi 714-801 --proportion 50.0 --residues-distance 10 --out results/sample-X \
+./plot_neighbors.py --format svg --roi 714-840 --proportion 50.0 --residues-distance 10 --out results/sample-X \
 --domains data/sample-X_domains.csv --parameters data/sample-X_analysis.yaml data/sample-X_neighbors.csv
 
 conda deactivate

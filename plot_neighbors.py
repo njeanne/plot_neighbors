@@ -359,7 +359,7 @@ def domains_involved(df, domains):
     return source_by_atom, source_by_residue
 
 
-def plot_neighbors(source, out_dir, params, roi_id, fmt, res_dist, by_atom):
+def plot_neighbors(source, out_dir, params, roi_id, fmt, res_dist, plot_by_atom):
     """
     Create the neighborhood contacts plot by domains.
 
@@ -373,17 +373,17 @@ def plot_neighbors(source, out_dir, params, roi_id, fmt, res_dist, by_atom):
     :type roi_id: str
     :param fmt: the format for the plot.
     :type fmt: str
-    :param by_atom: the contacts are displayed by atoms.
-    :type by_atom: bool
+    :param plot_by_atom: the contacts are displayed by atoms.
+    :type plot_by_atom: bool
     :param res_dist: the maximal residues distance in the amino acids chain.
     :type res_dist: int
     """
     # set color and plot text values
-    if by_atom:
-        elt_type = "atom"
+    if plot_by_atom:
+        elt_type = "atoms"
         plot_color = "deeppink"
     else:
-        elt_type = "residue"
+        elt_type = "residues"
         plot_color = "orangered"
 
     # set the seaborn plots style and size
@@ -522,8 +522,8 @@ if __name__ == "__main__":
 
     # plot neighborhood contacts by atom
     plot_neighbors(by_atom, args.out, parameters_contacts_analysis, region_of_interest, args.format,
-                   args.residues_distance, by_atom=True)
+                   args.residues_distance, plot_by_atom=True)
 
     # plot neighborhood contacts by residue
     plot_neighbors(by_residue, args.out, parameters_contacts_analysis, region_of_interest, args.format,
-                   args.residues_distance, by_atom=False)
+                   args.residues_distance, plot_by_atom=False)
