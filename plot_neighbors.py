@@ -312,7 +312,7 @@ def save_contacts_by_residue(df, out_dir, params, roi_id):
             data["residue 2"].append(tmp2["residue 2"].values[0])
             data["residue 2 domain"].append(tmp2["residue 2 domain"].values[0])
             data["number atoms contacts"].append(len(tmp2))
-            data["atoms contacts"].append(len(tmp2))
+            data["atoms contacts"].append(" | ".join(tmp2["contact"].tolist()))
     df_residues = pd.DataFrame.from_dict(data)
     out_path = os.path.join(out_dir, f"neighborhood_residues_{params['sample'].replace(' ', '_')}_"
                                      f"{roi_id.replace(' ', '-')}.csv")
