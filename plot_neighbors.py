@@ -229,7 +229,6 @@ def select_valid_atoms_neighbors(path_neighbors, proportion_thr, distance_thr):
     :rtype: pd.Dataframe
     """
     df_init = pd.read_csv(path_neighbors, sep=",")
-
     # remove the neighborhood contacts under the frames' proportion threshold.
     df = df_init[df_init["proportion frames (%)"] >= proportion_thr].copy()
     logging.debug(f"{len(df)}/{len(df_init)} neighborhood contacts present in {proportion_thr}% of the molecular "
@@ -312,7 +311,7 @@ def save_contacts_by_residue(df, out_dir, params, roi_id):
             data["residue 2"].append(tmp2["residue 2"].values[0])
             data["residue 2 domain"].append(tmp2["residue 2 domain"].values[0])
             data["number atoms contacts"].append(len(tmp2))
-            data["atoms contacts"].append(" | ".join(tmp2["contact"].tolist()))
+            data["atoms contacts"].append(" | ".join(tmp2["atoms contact"].tolist()))
     df_residues = pd.DataFrame.from_dict(data)
     out_path = os.path.join(out_dir, f"neighborhood_residues_{params['sample'].replace(' ', '_')}_"
                                      f"{roi_id.replace(' ', '-')}.csv")
