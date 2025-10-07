@@ -215,7 +215,7 @@ def extract_roi(roi_to_extract):
     return roi_extracted
 
 
-def select_valid_atoms_neighbors(path_neighbors, proportion_thr, distance_thr):
+def select_valid_atoms_neighbors(path_neighbors, proportion_thr, distance_thr, roi_coord):
     """
     Remove the neighbors contacts under the frames' proportions and the residues' distance thresholds.
 
@@ -225,13 +225,21 @@ def select_valid_atoms_neighbors(path_neighbors, proportion_thr, distance_thr):
     :type proportion_thr: float
     :param distance_thr: the residues' distance threshold.
     :type distance_thr: int
+    :param roi_coord: the region of interest's start and stop coordinates.
+    :type roi_coord: list
     :return: the dataframe of unique atoms pairs contacts.
     :rtype: pd.Dataframe
     """
-    df_init = pd.read_csv(path_neighbors, sep=",")
+    df = pd.read_csv(path_neighbors, sep=",")
+    len_df_init = len(df)
+    # select residues 1 in the region of interest limits
+    df = df[(df["residue 1 position"] >= roi_coord[0]) & (df["residue 1 position"] <= roi_coord[1])].copy()
+    len_df_roi = len(df)
+    logging.debug(f"{len(df)}/{len_df_init} neighborhood contacts present in region of interest limits: "
+                  f"{' - '.join(str(x) for x in roi_coord)}.")
     # remove the neighborhood contacts under the frames' proportion threshold.
-    df = df_init[df_init["proportion frames (%)"] >= proportion_thr].copy()
-    logging.debug(f"{len(df)}/{len(df_init)} neighborhood contacts present in {proportion_thr}% of the molecular "
+    df = df[df["proportion frames (%)"] >= proportion_thr].copy()
+    logging.debug(f"{len(df)}/{len_df_roi} neighborhood contacts present in {proportion_thr}% of the molecular "
                   f"dynamics frames.")
     # remove rows with too close distance between the residues
     idx_to_remove_for_residue_distance = []
@@ -241,8 +249,7 @@ def select_valid_atoms_neighbors(path_neighbors, proportion_thr, distance_thr):
     df.drop(idx_to_remove_for_residue_distance, inplace=True, axis=0)
     # reset the index of the dataframe from 0
     df.reset_index(inplace=True, drop=True)
-    logging.debug(f"{len(df)}/{len(df_init)} atoms contacts remaining with a minimal residues distance threshold of "
-                  f"{distance_thr}.")
+    logging.debug(f"{len(df)}/{len_df_init} atoms contacts remaining.")
     return df
 
 
@@ -504,8 +511,8 @@ if __name__ == "__main__":
     # match the Region Of Interest coordinates with a domain
     region_of_interest = extract_roi_id(domains_data, roi_limits)
 
-    atoms_neighbors = select_valid_atoms_neighbors(args.input, args.proportion, args.residues_distance)
-    logging.info(f"{len(atoms_neighbors)} unique residues pairs contacts (<= "
+    atoms_neighbors = select_valid_atoms_neighbors(args.input, args.proportion, args.residues_distance, roi_limits)
+    logging.info(f"{len(atoms_neighbors)} unique contacts (<= "
                  f"{parameters_contacts_analysis['parameters']['maximal atoms distance']} \u212B) with a distance of "
                  f"at least {args.residues_distance} residues"
                  f"{' in the region of interest '+args.roi if args.roi else ''} (residues pair may have multiple atoms "
